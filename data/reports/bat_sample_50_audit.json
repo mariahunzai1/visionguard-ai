@@ -1,0 +1,207 @@
+{
+  "report_title": "VisionGuard AI \u2014 Batch Quality Audit Report",
+  "generated_at": "2026-11-25T16:33:27.660+00:00",
+  "batch": {
+    "batch_id": "bat_sample_50",
+    "batch_name": "Sample-Batch-50-Verification",
+    "product_line": "mixed",
+    "total_items": 50,
+    "passed_count": 26,
+    "quarantined_count": 2,
+    "pending_qa_count": 22,
+    "avg_latency_ms": 36.926,
+    "audit_report_path": null,
+    "created_at": "2026-11-25T16:33:21.224+00:00",
+    "completed_at": "2026-11-25T16:33:27.620+00:00"
+  },
+  "sla_thresholds": {
+    "qa_confidence_threshold": 0.8,
+    "critical_area_mm2_threshold": 12.0,
+    "max_alignment_skew_deg": 5.5
+  },
+  "summary_metrics": {
+    "total_items": 50,
+    "passed_count": 26,
+    "quarantined_count": 2,
+    "pending_qa_count": 22,
+    "pass_rate_pct": 52.0,
+    "avg_latency_ms": 36.926,
+    "automation_events_count": 50
+  },
+  "quarantined_items": [
+    {
+      "item_id": "itm_360666422c",
+      "serial_number": "VG-2026-0024",
+      "surface_type": "packaging",
+      "severity": "CRITICAL_REJECT",
+      "confidence": 0.9,
+      "defect_area_mm2": 24.988,
+      "alignment_angle_deg": -7.34
+    },
+    {
+      "item_id": "itm_e3b0f28479",
+      "serial_number": "VG-2026-0003",
+      "surface_type": "packaging",
+      "severity": "CRITICAL_REJECT",
+      "confidence": 0.9,
+      "defect_area_mm2": 92.617,
+      "alignment_angle_deg": 10.42
+    }
+  ],
+  "pending_qa_items": [
+    {
+      "item_id": "itm_72869aa77f",
+      "serial_number": "VG-2026-0049",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 10.892
+    },
+    {
+      "item_id": "itm_01e03f96a6",
+      "serial_number": "VG-2026-0046",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 130.657
+    },
+    {
+      "item_id": "itm_ba86894198",
+      "serial_number": "VG-2026-0045",
+      "surface_type": "packaging",
+      "confidence": 0.6853,
+      "defect_area_mm2": 137.532
+    },
+    {
+      "item_id": "itm_eae2a3f32f",
+      "serial_number": "VG-2026-0043",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 140.133
+    },
+    {
+      "item_id": "itm_653b40ed12",
+      "serial_number": "VG-2026-0042",
+      "surface_type": "packaging",
+      "confidence": 0.6853,
+      "defect_area_mm2": 28.634
+    },
+    {
+      "item_id": "itm_68146ee080",
+      "serial_number": "VG-2026-0040",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 34.534
+    },
+    {
+      "item_id": "itm_94c9f7c468",
+      "serial_number": "VG-2026-0032",
+      "surface_type": "pcb",
+      "confidence": 0.56,
+      "defect_area_mm2": 6.967
+    },
+    {
+      "item_id": "itm_eb7d1b09b8",
+      "serial_number": "VG-2026-0031",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 139.227
+    },
+    {
+      "item_id": "itm_524e17ee36",
+      "serial_number": "VG-2026-0030",
+      "surface_type": "packaging",
+      "confidence": 0.56,
+      "defect_area_mm2": 8.036
+    },
+    {
+      "item_id": "itm_2de59b98bf",
+      "serial_number": "VG-2026-0025",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 126.64
+    },
+    {
+      "item_id": "itm_a5c0f09455",
+      "serial_number": "VG-2026-0023",
+      "surface_type": "pcb",
+      "confidence": 0.56,
+      "defect_area_mm2": 1.347
+    },
+    {
+      "item_id": "itm_11a43f0cec",
+      "serial_number": "VG-2026-0021",
+      "surface_type": "packaging",
+      "confidence": 0.6853,
+      "defect_area_mm2": 112.612
+    },
+    {
+      "item_id": "itm_aecb3f3267",
+      "serial_number": "VG-2026-0020",
+      "surface_type": "pcb",
+      "confidence": 0.6591,
+      "defect_area_mm2": 7.827
+    },
+    {
+      "item_id": "itm_98392f0f59",
+      "serial_number": "VG-2026-0019",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 137.462
+    },
+    {
+      "item_id": "itm_ddeaca13a9",
+      "serial_number": "VG-2026-0017",
+      "surface_type": "pcb",
+      "confidence": 0.6853,
+      "defect_area_mm2": 22.225
+    },
+    {
+      "item_id": "itm_35409041ec",
+      "serial_number": "VG-2026-0016",
+      "surface_type": "metallic",
+      "confidence": 0.56,
+      "defect_area_mm2": 3.019
+    },
+    {
+      "item_id": "itm_8b5e14553f",
+      "serial_number": "VG-2026-0013",
+      "surface_type": "metallic",
+      "confidence": 0.56,
+      "defect_area_mm2": 11.844
+    },
+    {
+      "item_id": "itm_ff36306de5",
+      "serial_number": "VG-2026-0008",
+      "surface_type": "pcb",
+      "confidence": 0.56,
+      "defect_area_mm2": 1.649
+    },
+    {
+      "item_id": "itm_0422b73373",
+      "serial_number": "VG-2026-0007",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 150.676
+    },
+    {
+      "item_id": "itm_07e548fd24",
+      "serial_number": "VG-2026-0006",
+      "surface_type": "packaging",
+      "confidence": 0.56,
+      "defect_area_mm2": 1.092
+    },
+    {
+      "item_id": "itm_fecade215d",
+      "serial_number": "VG-2026-0004",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 11.682
+    },
+    {
+      "item_id": "itm_2f5f1a6653",
+      "serial_number": "VG-2026-0001",
+      "surface_type": "metallic",
+      "confidence": 0.6853,
+      "defect_area_mm2": 146.403
+    }
+  ]
+}

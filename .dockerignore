@@ -1,0 +1,17 @@
+_portfolio_diagrams/
+tests/
+.git/
+.pytest_cache/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite
+*.sqlite3
+data/
+models/*.onnx
+.venv/
+venv/
+.env

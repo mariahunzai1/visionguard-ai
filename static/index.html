@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VisionGuard AI — Autonomous Visual Defect Inspection &amp; Triage Console</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-cluster">
+      <div class="brand-mark">VG</div>
+      <div>
+        <h1>VisionGuard AI <span class="badge-env">PRODUCTION PIPELINE</span></h1>
+        <p class="subtitle">OpenCV Metrology · ONNX YOLOv8-Lite + MobileNetV3-INT8 · Deterministic SLA Triage</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div id="runtime-pill" class="status-pill">ONNX Runtime: Loading...</div>
+      <label class="btn btn-secondary upload-btn">
+        Upload Frame
+        <input type="file" id="upload-input" accept="image/*" hidden />
+      </label>
+      <button id="run-batch-btn" class="btn btn-primary">Run 50-Item Batch</button>
+      <button id="refresh-btn" class="btn btn-ghost">Refresh</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- KPI Telemetry Ribbon -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Total Inspected</span>
+        <strong id="kpi-total" class="kpi-value">0</strong>
+        <span id="kpi-batches" class="kpi-sub">0 batches logged</span>
+      </div>
+      <div class="kpi-card kpi-emerald">
+        <span class="kpi-label">Auto-Approved</span>
+        <strong id="kpi-approved" class="kpi-value">0</strong>
+        <span id="kpi-pass-rate" class="kpi-sub">0.0% pass rate</span>
+      </div>
+      <div class="kpi-card kpi-crimson">
+        <span class="kpi-label">Quarantined + Webhooks</span>
+        <strong id="kpi-quarantined" class="kpi-value">0</strong>
+        <span id="kpi-webhooks" class="kpi-sub">0/0 signed webhooks 200 OK</span>
+      </div>
+      <div class="kpi-card kpi-amber">
+        <span class="kpi-label">HITL QA Review Queue</span>
+        <strong id="kpi-qa" class="kpi-value">0</strong>
+        <span class="kpi-sub">Threshold: conf &lt; 0.80</span>
+      </div>
+      <div class="kpi-card kpi-cyan">
+        <span class="kpi-label">Mean / P95 Latency</span>
+        <strong id="kpi-latency" class="kpi-value">0.0 ms</strong>
+        <span id="kpi-latency-split" class="kpi-sub">CV 0.0 ms · ONNX 0.0 ms</span>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="feed">Live Inspection &amp; CV Overlay</button>
+      <button class="tab-btn" data-tab="automation">Automation Rules &amp; Webhooks</button>
+      <button class="tab-btn" data-tab="qa">Human QA Review Queue <span id="qa-tab-badge" class="pill-count">0</span></button>
+      <button class="tab-btn" data-tab="telemetry">Batch Telemetry &amp; Audit Reports</button>
+    </nav>
+
+    <!-- TAB 1: Live Inspection Feed & Annotated CV Overlay -->
+    <section id="tab-feed" class="tab-panel active">
+      <div class="split-layout">
+        <div class="panel feed-panel">
+          <div class="panel-header">
+            <h2>Live Inspection Stream</h2>
+            <div class="filter-group">
+              <select id="state-filter" class="select-input">
+                <option value="">All States</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="QUARANTINED">QUARANTINED</option>
+                <option value="PENDING_QA">PENDING_QA</option>
+                <option value="QA_RESOLVED_PASS">QA_RESOLVED_PASS</option>
+                <option value="QA_RESOLVED_REJECT">QA_RESOLVED_REJECT</option>
+              </select>
+            </div>
+          </div>
+          <div id="items-list" class="items-scroll"></div>
+        </div>
+
+        <div class="panel inspector-panel">
+          <div class="panel-header">
+            <div>
+              <h2 id="selected-title">Select an inspected frame</h2>
+              <span id="selected-subtitle" class="muted">Annotated OpenCV metrology &amp; ONNX detections</span>
+            </div>
+            <div class="toggle-group">
+              <button id="view-overlay-btn" class="btn btn-xs active">Annotated Overlay</button>
+              <button id="view-raw-btn" class="btn btn-xs">Raw Frame</button>
+            </div>
+          </div>
+          <div class="image-stage">
+            <img id="inspector-image" alt="Inspection Frame" />
+            <div id="inspector-empty" class="empty-state">No item selected. Run a 50-item batch or upload an inspection frame.</div>
+          </div>
+          <div id="metrology-grid" class="metrology-grid"></div>
+          <div class="detections-wrap">
+            <h3>Localized Defects &amp; Physical Metrology</h3>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Class</th>
+                  <th>Severity</th>
+                  <th>Confidence</th>
+                  <th>Area (mm&sup2;)</th>
+                  <th>W &times; H (mm)</th>
+                  <th>BBox (px)</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody id="detections-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Automation Rules & Signed Webhook Log -->
+    <section id="tab-automation" class="tab-panel">
+      <div class="two-col-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Deterministic SLA Triage Rule Engine</h2>
+            <span class="muted">Ordered priority evaluation</span>
+          </div>
+          <div id="sla-rules-list" class="rules-list"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Mock ERP Receiver (Verified HMAC Alerts)</h2>
+            <span class="muted">POST /api/webhooks/erp-receiver</span>
+          </div>
+          <div id="erp-alerts-list" class="events-scroll"></div>
+        </div>
+      </div>
+
+      <div class="panel mt-16">
+        <div class="panel-header">
+          <h2>Signed Webhook Dispatch Log (HMAC-SHA256)</h2>
+          <span class="muted">Real HTTP status &amp; round-trip latency</span>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Item ID</th>
+                <th>Target</th>
+                <th>HTTP Status</th>
+                <th>Latency</th>
+                <th>HMAC-SHA256 Signature</th>
+                <th>Response</th>
+              </tr>
+            </thead>
+            <tbody id="webhooks-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel mt-16">
+        <div class="panel-header">
+          <h2>Automation Event Audit Trail</h2>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Rule</th>
+                <th>Action</th>
+                <th>Item ID</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody id="events-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Human-in-the-Loop QA Review Queue -->
+    <section id="tab-qa" class="tab-panel">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Human-in-the-Loop QA Review Queue</h2>
+            <span class="muted">Low-confidence detections (&lt; 0.80) paused before ERP release or quarantine</span>
+          </div>
+          <div class="qa-reviewer-box">
+            <label>Reviewer:</label>
+            <input id="qa-reviewer-input" type="text" value="qa_lead_operator" class="text-input" />
+          </div>
+        </div>
+        <div id="qa-queue-grid" class="qa-grid"></div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Telemetry Charts & Batch Audit Reports -->
+    <section id="tab-telemetry" class="tab-panel">
+      <div class="charts-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Per-Item Pipeline Latency (OpenCV vs ONNX Runtime)</h2>
+            <span class="muted">Milliseconds across inspected frames</span>
+          </div>
+          <div id="latency-chart" class="chart-box"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Severity &amp; Defect Class Distribution</h2>
+            <span class="muted">Telemetry breakdown across surfaces</span>
+          </div>
+          <div id="distribution-chart" class="chart-box"></div>
+        </div>
+      </div>
+
+      <div class="panel mt-16">
+        <div class="panel-header">
+          <h2>Inspection Batches &amp; Audit Reports</h2>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Batch ID</th>
+                <th>Name</th>
+                <th>Line</th>
+                <th>Total</th>
+                <th>Passed</th>
+                <th>Quarantined</th>
+                <th>Pending QA</th>
+                <th>Avg Latency</th>
+                <th>Audit Report</th>
+              </tr>
+            </thead>
+            <tbody id="batches-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

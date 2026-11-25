@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1200px;
+    height: 800px;
+    overflow: hidden;
+    background: #0B1120;
+    color: #F1F5F9;
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .canvas {
+    width: 1200px;
+    height: 800px;
+    padding: 24px 28px;
+    background:
+      radial-gradient(circle at 12% 10%, rgba(56, 189, 248, 0.08), transparent 38%),
+      radial-gradient(circle at 88% 90%, rgba(16, 185, 129, 0.06), transparent 36%),
+      #0B1120;
+    position: relative;
+  }
+  .grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(30, 41, 59, 0.35) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(30, 41, 59, 0.35) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1.5px solid #1E293B;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+  .title-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #38BDF8;
+    margin-bottom: 4px;
+  }
+  h1 {
+    font-size: 21px;
+    font-weight: 800;
+    color: #F8FAFC;
+    letter-spacing: -0.2px;
+  }
+  .meta-badge {
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 10px;
+    color: #94A3B8;
+    background: #111827;
+    border: 1px solid #1E293B;
+    padding: 5px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .footer {
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    bottom: 14px;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #64748B;
+    border-top: 1px solid #1E293B;
+    padding-top: 7px;
+  }
+  .mono { font-family: "JetBrains Mono", Consolas, monospace; }
+
+  .section-box {
+    position: relative;
+    z-index: 2;
+    border: 1.5px solid #1E293B;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.85);
+    padding: 12px 16px;
+  }
+  .sec-label {
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #38BDF8;
+    margin-bottom: 10px;
+  }
+  .state-node {
+    position: absolute;
+    border-radius: 7px;
+    padding: 7px 10px;
+    text-align: center;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    background: #111827;
+    border: 1.5px solid #334155;
+  }
+  .edge-tag {
+    position: absolute;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 9.2px;
+    color: #CBD5E1;
+    background: #0B1120;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid #1E293B;
+  }
+  .erd-table {
+    position: absolute;
+    background: #111827;
+    border: 1.5px solid #263449;
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .erd-head {
+    background: #162033;
+    padding: 6px 9px;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 11px;
+    font-weight: 800;
+    color: #38BDF8;
+    border-bottom: 1px solid #263449;
+    display: flex;
+    justify-content: space-between;
+  }
+  .erd-cols {
+    padding: 6px 9px;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 9.6px;
+    line-height: 1.5;
+    color: #CBD5E1;
+  }
+  .pk { color: #FCD34D; font-weight: 700; }
+  .fk { color: #A5B4FC; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="grid-bg"></div>
+  <header class="header">
+    <div>
+      <div class="title-tag">FIG 03 · AUTOMATION STATE MACHINE &amp; NORMALIZED DATABASE SCHEMA</div>
+      <h1>Inspection Item Lifecycle State Machine &amp; 5-Table Relational ERD</h1>
+    </div>
+    <div class="meta-badge">SQLite / PostgreSQL · Foreign-Key Enforced · Immutable Audit Events</div>
+  </header>
+
+  <!-- TOP HALF: STATE MACHINE -->
+  <div class="section-box" style="height:245px;margin-bottom:14px;">
+    <div class="sec-label">A. Deterministic Inspection Item State Machine</div>
+    <div style="position:relative;height:195px;">
+      <svg width="1110" height="195" style="position:absolute;inset:0;z-index:1;pointer-events:none;">
+        <defs>
+          <marker id="sm-c" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#38BDF8"/></marker>
+          <marker id="sm-e" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#10B981"/></marker>
+          <marker id="sm-r" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#EF4444"/></marker>
+          <marker id="sm-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#F59E0B"/></marker>
+        </defs>
+        <!-- INGESTED -> ANALYZED -->
+        <path d="M135,92 L222,92" stroke="#38BDF8" stroke-width="2" fill="none" marker-end="url(#sm-c)"/>
+        <!-- ANALYZED -> APPROVED (top) -->
+        <path d="M352,78 L420,28 L525,28" stroke="#10B981" stroke-width="2" fill="none" marker-end="url(#sm-e)"/>
+        <!-- ANALYZED -> QUARANTINED (mid) -->
+        <path d="M352,92 L525,92" stroke="#EF4444" stroke-width="2" fill="none" marker-end="url(#sm-r)"/>
+        <!-- ANALYZED -> PENDING_QA (bottom) -->
+        <path d="M352,106 L420,156 L525,156" stroke="#F59E0B" stroke-width="2" fill="none" marker-end="url(#sm-a)"/>
+        <!-- PENDING_QA -> QA_RESOLVED_PASS -->
+        <path d="M685,146 L765,112 L865,112" stroke="#10B981" stroke-width="2" fill="none" marker-end="url(#sm-e)"/>
+        <!-- PENDING_QA -> QA_RESOLVED_REJECT -->
+        <path d="M685,164 L765,164 L865,164" stroke="#EF4444" stroke-width="2" fill="none" marker-end="url(#sm-r)"/>
+      </svg>
+
+      <div class="state-node" style="left:5px;top:72px;width:130px;border-color:#38BDF8;color:#38BDF8;">INGESTED</div>
+      <div class="edge-tag" style="left:145px;top:70px;">CV + ONNX</div>
+
+      <div class="state-node" style="left:226px;top:72px;width:126px;border-color:#818CF8;color:#A5B4FC;">ANALYZED</div>
+
+      <div class="edge-tag" style="left:386px;top:16px;color:#6EE7B7;">SLA-03/04: conf ≥ 0.80</div>
+      <div class="state-node" style="left:530px;top:8px;width:155px;border-color:#10B981;color:#6EE7B7;">APPROVED</div>
+
+      <div class="edge-tag" style="left:372px;top:71px;color:#FCA5A5;">SLA-02: Crit / ≥12mm²</div>
+      <div class="state-node" style="left:530px;top:72px;width:155px;border-color:#EF4444;color:#FCA5A5;">QUARANTINED</div>
+
+      <div class="edge-tag" style="left:392px;top:155px;color:#FCD34D;">SLA-01: conf &lt; 0.80</div>
+      <div class="state-node" style="left:530px;top:136px;width:155px;border-color:#F59E0B;color:#FCD34D;">PENDING_QA</div>
+
+      <div class="edge-tag" style="left:725px;top:92px;color:#6EE7B7;">QA Approve</div>
+      <div class="state-node" style="left:870px;top:92px;width:210px;border-color:#10B981;color:#6EE7B7;">QA_RESOLVED_PASS</div>
+
+      <div class="edge-tag" style="left:715px;top:144px;color:#FCA5A5;">QA Reject + Webhook</div>
+      <div class="state-node" style="left:870px;top:145px;width:210px;border-color:#EF4444;color:#FCA5A5;">QA_RESOLVED_REJECT</div>
+
+      <div class="edge-tag" style="left:735px;top:18px;border-color:rgba(239,68,68,0.45);color:#FCA5A5;">
+        QUARANTINED &amp; QA_RESOLVED_REJECT trigger HMAC-SHA256 ERP Webhook
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM HALF: NORMALIZED ERD -->
+  <div class="section-box" style="height:400px;">
+    <div class="sec-label">B. Normalized Relational Database ERD (5 Core Tables + ERP Receiver)</div>
+    <div style="position:relative;height:350px;">
+      <svg width="1110" height="350" style="position:absolute;inset:0;z-index:1;pointer-events:none;">
+        <defs>
+          <marker id="erd-arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#38BDF8"/></marker>
+        </defs>
+        <!-- batches -> items (1 to N) -->
+        <path d="M210,105 L268,105" stroke="#38BDF8" stroke-width="2" fill="none" marker-end="url(#erd-arr)"/>
+        <!-- items -> defect_detections -->
+        <path d="M498,85 L570,85" stroke="#38BDF8" stroke-width="2" fill="none" marker-end="url(#erd-arr)"/>
+        <!-- items -> automation_events -->
+        <path d="M498,210 L570,210" stroke="#38BDF8" stroke-width="2" fill="none" marker-end="url(#erd-arr)"/>
+        <!-- automation_events -> webhook_deliveries -->
+        <path d="M815,210 L875,210" stroke="#EF4444" stroke-width="2" fill="none" marker-end="url(#erd-arr)"/>
+      </svg>
+
+      <!-- Table 1: inspection_batches -->
+      <div class="erd-table" style="left:0;top:14px;width:210px;">
+        <div class="erd-head"><span>inspection_batches</span><span>1</span></div>
+        <div class="erd-cols">
+          <span class="pk">PK</span> batch_id TEXT<br/>
+          batch_name TEXT<br/>
+          product_line TEXT<br/>
+          total_items INT<br/>
+          passed_count INT<br/>
+          quarantined_count INT<br/>
+          pending_qa_count INT<br/>
+          avg_latency_ms REAL<br/>
+          audit_report_path TEXT<br/>
+          created_at TEXT
+        </div>
+      </div>
+
+      <!-- Table 2: inspection_items -->
+      <div class="erd-table" style="left:270px;top:6px;width:228px;border-color:#38BDF8;">
+        <div class="erd-head"><span>inspection_items</span><span>N</span></div>
+        <div class="erd-cols">
+          <span class="pk">PK</span> item_id TEXT<br/>
+          <span class="fk">FK</span> batch_id TEXT<br/>
+          serial_number TEXT<br/>
+          surface_type TEXT<br/>
+          state TEXT<br/>
+          predicted_severity TEXT<br/>
+          confidence REAL<br/>
+          defect_area_mm2 REAL<br/>
+          max_defect_length_mm REAL<br/>
+          px_per_mm REAL<br/>
+          alignment_angle_deg REAL<br/>
+          cv_latency_ms REAL<br/>
+          dl_latency_ms REAL<br/>
+          total_latency_ms REAL<br/>
+          qa_reviewer TEXT
+        </div>
+      </div>
+
+      <!-- Table 3: defect_detections -->
+      <div class="erd-table" style="left:572px;top:6px;width:242px;">
+        <div class="erd-head"><span>defect_detections</span><span>N</span></div>
+        <div class="erd-cols">
+          <span class="pk">PK</span> detection_id TEXT<br/>
+          <span class="fk">FK</span> item_id TEXT<br/>
+          defect_class TEXT<br/>
+          severity TEXT<br/>
+          confidence REAL<br/>
+          bbox_x1..y2 INT<br/>
+          area_px / area_mm2 REAL<br/>
+          width_mm / height_mm REAL<br/>
+          source TEXT
+        </div>
+      </div>
+
+      <!-- Table 4: automation_events -->
+      <div class="erd-table" style="left:572px;top:172px;width:242px;border-color:#F59E0B;">
+        <div class="erd-head" style="color:#FCD34D;"><span>automation_events</span><span>N</span></div>
+        <div class="erd-cols">
+          <span class="pk">PK</span> event_id TEXT<br/>
+          <span class="fk">FK</span> item_id TEXT<br/>
+          <span class="fk">FK</span> batch_id TEXT<br/>
+          rule_id TEXT<br/>
+          rule_name TEXT<br/>
+          action TEXT<br/>
+          reason TEXT<br/>
+          created_at TEXT
+        </div>
+      </div>
+
+      <!-- Table 5: webhook_deliveries -->
+      <div class="erd-table" style="left:877px;top:148px;width:232px;border-color:#EF4444;">
+        <div class="erd-head" style="color:#FCA5A5;"><span>webhook_deliveries</span><span>0..1</span></div>
+        <div class="erd-cols">
+          <span class="pk">PK</span> delivery_id TEXT<br/>
+          <span class="fk">FK</span> event_id TEXT<br/>
+          <span class="fk">FK</span> item_id TEXT<br/>
+          target_url TEXT<br/>
+          payload_json TEXT<br/>
+          hmac_signature TEXT<br/>
+          http_status INT<br/>
+          response_body TEXT<br/>
+          latency_ms REAL<br/>
+          delivered_at TEXT
+        </div>
+      </div>
+
+      <!-- Cardinality & ERP Receiver callout -->
+      <div class="erd-table" style="left:877px;top:6px;width:232px;border-color:#10B981;">
+        <div class="erd-head" style="color:#6EE7B7;"><span>erp_alerts (Mock ERP)</span><span>LOG</span></div>
+        <div class="erd-cols">
+          <span class="pk">PK</span> alert_id TEXT<br/>
+          item_id / batch_id TEXT<br/>
+          severity / area_mm2<br/>
+          signature_verified INT<br/>
+          received_at TEXT
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <span>VisionGuard AI v1.0 · State Machine &amp; Normalized ERD</span>
+    <span>Scale: 2400×1600 (2× Retina) · Dark-Slate #0B1120</span>
+  </footer>
+</div>
+</body>
+</html>

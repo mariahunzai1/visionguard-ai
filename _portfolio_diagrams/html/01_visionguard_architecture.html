@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1200px;
+    height: 800px;
+    overflow: hidden;
+    background: #0B1120;
+    color: #F1F5F9;
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .canvas {
+    width: 1200px;
+    height: 800px;
+    padding: 24px 28px;
+    background:
+      radial-gradient(circle at 12% 10%, rgba(56, 189, 248, 0.08), transparent 38%),
+      radial-gradient(circle at 88% 90%, rgba(16, 185, 129, 0.06), transparent 36%),
+      #0B1120;
+    position: relative;
+  }
+  .grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(30, 41, 59, 0.35) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(30, 41, 59, 0.35) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1.5px solid #1E293B;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+  .title-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #38BDF8;
+    margin-bottom: 4px;
+  }
+  h1 {
+    font-size: 21px;
+    font-weight: 800;
+    color: #F8FAFC;
+    letter-spacing: -0.2px;
+  }
+  .meta-badge {
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 10px;
+    color: #94A3B8;
+    background: #111827;
+    border: 1px solid #1E293B;
+    padding: 5px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .footer {
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    bottom: 14px;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #64748B;
+    border-top: 1px solid #1E293B;
+    padding-top: 7px;
+  }
+  .mono { font-family: "JetBrains Mono", Consolas, monospace; }
+
+  .arch-stage {
+    position: relative;
+    z-index: 2;
+    height: 660px;
+  }
+  .zone {
+    position: absolute;
+    border-radius: 10px;
+    border: 1.5px solid #1E293B;
+    background: rgba(15, 23, 42, 0.88);
+    padding: 12px 14px;
+  }
+  .zone-title {
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .box {
+    background: #111827;
+    border: 1px solid #263449;
+    border-radius: 7px;
+    padding: 9px 11px;
+    margin-bottom: 9px;
+  }
+  .box:last-child { margin-bottom: 0; }
+  .box-head {
+    font-size: 12px;
+    font-weight: 700;
+    color: #F1F5F9;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .box-sub {
+    font-size: 10.5px;
+    color: #94A3B8;
+    line-height: 1.38;
+  }
+  .pill {
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 9.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .c-cyan { color: #38BDF8; border-color: rgba(56,189,248,0.45); }
+  .bg-cyan { background: rgba(56,189,248,0.14); color: #38BDF8; }
+  .c-indigo { color: #818CF8; border-color: rgba(129,140,248,0.45); }
+  .bg-indigo { background: rgba(129,140,248,0.14); color: #A5B4FC; }
+  .c-emerald { color: #10B981; border-color: rgba(16,185,129,0.45); }
+  .bg-emerald { background: rgba(16,185,129,0.14); color: #6EE7B7; }
+  .c-amber { color: #F59E0B; border-color: rgba(245,158,11,0.45); }
+  .bg-amber { background: rgba(245,158,11,0.16); color: #FCD34D; }
+  .c-crimson { color: #EF4444; border-color: rgba(239,68,68,0.45); }
+  .bg-crimson { background: rgba(239,68,68,0.16); color: #FCA5A5; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="grid-bg"></div>
+  <header class="header">
+    <div>
+      <div class="title-tag">FIG 01 · SYSTEM ARCHITECTURE · IEEE SYSTEMS VIEW</div>
+      <h1>VisionGuard AI — Autonomous Visual Defect Inspection &amp; Event-Driven Triage Architecture</h1>
+    </div>
+    <div class="meta-badge">FastAPI · OpenCV 4 · ONNX Runtime · SQLite/PostgreSQL · HMAC-SHA256</div>
+  </header>
+
+  <div class="arch-stage">
+    <!-- SVG orthogonal connectors -->
+    <svg width="1144" height="660" style="position:absolute;inset:0;z-index:1;pointer-events:none;">
+      <defs>
+        <marker id="arr-cyan" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#38BDF8"/>
+        </marker>
+        <marker id="arr-indigo" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#818CF8"/>
+        </marker>
+        <marker id="arr-emerald" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#10B981"/>
+        </marker>
+        <marker id="arr-crimson" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#EF4444"/>
+        </marker>
+        <marker id="arr-amber" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#F59E0B"/>
+        </marker>
+      </defs>
+      <!-- Ingestion -> CV -->
+      <path d="M275,180 L335,180" stroke="#38BDF8" stroke-width="2.2" fill="none" marker-end="url(#arr-cyan)"/>
+      <!-- CV -> ONNX DL -->
+      <path d="M530,295 L530,340" stroke="#818CF8" stroke-width="2.2" fill="none" marker-end="url(#arr-indigo)"/>
+      <!-- CV -> SLA (metrology metrics) -->
+      <path d="M720,175 L780,175" stroke="#38BDF8" stroke-width="2" stroke-dasharray="5,4" fill="none" marker-end="url(#arr-cyan)"/>
+      <!-- ONNX DL -> SLA -->
+      <path d="M720,455 L750,455 L750,235 L780,235" stroke="#818CF8" stroke-width="2.2" fill="none" marker-end="url(#arr-indigo)"/>
+      <!-- SLA -> Persistence & ERP -->
+      <path d="M962,330 L962,368" stroke="#EF4444" stroke-width="2.2" fill="none" marker-end="url(#arr-crimson)"/>
+      <!-- Persistence -> Console (routed cleanly above footer in bottom gutter y=648) -->
+      <path d="M782,636 L754,636 L754,648 L296,648 L296,620 L275,620" stroke="#10B981" stroke-width="2.2" fill="none" marker-end="url(#arr-emerald)"/>
+      <!-- Console QA Override -> SLA (routed along left-middle corridor y=318 and vertical channel x=754) -->
+      <path d="M275,545 L306,545 L306,318 L754,318 L754,285 L780,285" stroke="#F59E0B" stroke-width="1.9" stroke-dasharray="5,4" fill="none" marker-end="url(#arr-amber)"/>
+    </svg>
+
+    <!-- Zone 1: Edge Ingestion -->
+    <div class="zone c-cyan" style="left:0;top:16px;width:275px;height:390px;">
+      <div class="zone-title"><span>1. Edge Capture &amp; API</span><span class="pill bg-cyan">INGEST</span></div>
+      <div class="box">
+        <div class="box-head"><span>Synthetic Frame Generator</span><span class="pill bg-cyan">640×480</span></div>
+        <div class="box-sub">Metallic plates, PCB assemblies, &amp; packaging seals with illumination gradients, rotation skew, and injected defects.</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>FastAPI Ingestion Gateway</span><span class="pill bg-cyan">REST</span></div>
+        <div class="box-sub"><span class="mono">POST /api/inspect</span> (multipart)<br/><span class="mono">POST /api/batches/run</span> (50-item batch)<br/>Assigns <span class="mono">item_id</span> &amp; <span class="mono">batch_id</span>.</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>Canonical Calibration Spec</span><span class="pill bg-cyan">100 mm</span></div>
+        <div class="box-sub">Nominal part width = 100.0 mm<br/>Target ROI = 512×384 (~4.64 px/mm)</div>
+      </div>
+    </div>
+
+    <!-- Zone 1b: Operator Console -->
+    <div class="zone c-emerald" style="left:0;top:430px;width:275px;height:215px;">
+      <div class="zone-title"><span>5. Operator Console UI</span><span class="pill bg-emerald">#0B1120</span></div>
+      <div class="box">
+        <div class="box-head"><span>Dark-Slate Telemetry UI</span><span class="pill bg-emerald">HTML/JS</span></div>
+        <div class="box-sub">• Live CV Overlay &amp; Raw Frame Toggle<br/>• Pixel-to-mm Metrology Readout<br/>• HITL QA Queue (<span class="mono">PASS/REJECT</span>)<br/>• Latency &amp; Defect SVG Charts</div>
+      </div>
+    </div>
+
+    <!-- Zone 2: Classical CV & Metrology -->
+    <div class="zone c-cyan" style="left:338px;top:16px;width:382px;height:278px;">
+      <div class="zone-title"><span>2. OpenCV Metrology Pipeline</span><span class="pill bg-cyan">cv_pipeline.py</span></div>
+      <div class="box">
+        <div class="box-head"><span>LAB CLAHE Normalization</span><span class="pill bg-cyan">clip=2.5</span></div>
+        <div class="box-sub">Adaptive histogram equalization on L-channel (8×8 tiles) removing overhead lighting falloff.</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>Contour ROI &amp; Homography Warp</span><span class="pill bg-cyan">512×384</span></div>
+        <div class="box-sub">Otsu segmentation + <span class="mono">minAreaRect</span> skew angle (<span class="mono">°</span>) + <span class="mono">warpPerspective</span> rectification &amp; dynamic <span class="mono">px/mm</span>.</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>Morphological Residual Metrology</span><span class="pill bg-cyan">mm²</span></div>
+        <div class="box-sub">BlackHat + TopHat residual extracts <span class="mono">area_mm2</span>, <span class="mono">width_mm</span>, <span class="mono">height_mm</span>, and renders HUD overlays.</div>
+      </div>
+    </div>
+
+    <!-- Zone 3: ONNX Runtime DL Engine -->
+    <div class="zone c-indigo" style="left:338px;top:344px;width:382px;height:301px;">
+      <div class="zone-title"><span>3. ONNX Deep Learning Engine</span><span class="pill bg-indigo">dl_engine.py</span></div>
+      <div class="box">
+        <div class="box-head"><span>YOLOv8-Lite Grid Detector</span><span class="pill bg-indigo">FP32 ONNX</span></div>
+        <div class="box-sub">Input <span class="mono">1×3×192×256</span> → 5-stage Conv/BN/ReLU → <span class="mono">6×8</span> spatial grid predicting objectness, bbox &amp; class (<span class="mono">clean/scratch/crack/misaligned</span>).</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>MobileNetV3 Severity Classifier</span><span class="pill bg-indigo">INT8 ONNX</span></div>
+        <div class="box-sub">Depthwise-separable blocks quantized with <span class="mono">DequantizeLinear</span> (<span class="mono">1×3×128×128</span>) → <span class="mono">PASS / MINOR_COSMETIC / CRITICAL_REJECT</span>.</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>ONNX + Metrology Fusion</span><span class="pill bg-indigo">CPU EP</span></div>
+        <div class="box-sub">Fuses neural probabilities with calibrated area/skew metrics; preserves genuine <span class="mono">&lt;0.80</span> uncertainty band.</div>
+      </div>
+    </div>
+
+    <!-- Zone 4: Automation Triage -->
+    <div class="zone c-amber" style="left:782px;top:16px;width:362px;height:312px;">
+      <div class="zone-title"><span>4. Deterministic SLA Triage Engine</span><span class="pill bg-amber">automation_engine.py</span></div>
+      <div class="box">
+        <div class="box-head"><span>SLA-01 · Confidence Gate</span><span class="pill bg-amber">PENDING_QA</span></div>
+        <div class="box-sub"><span class="mono">conf &lt; 0.80</span> → Pause &amp; route to Human QA Queue.</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>SLA-02 · Critical Quarantine</span><span class="pill bg-crimson">QUARANTINED</span></div>
+        <div class="box-sub"><span class="mono">CRITICAL_REJECT</span> OR <span class="mono">area ≥ 12.0 mm²</span> OR <span class="mono">|skew| &gt; 5.5°</span> → Quarantine + Signed Webhook.</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>SLA-03 / SLA-04 · Pass Gates</span><span class="pill bg-emerald">APPROVED</span></div>
+        <div class="box-sub">Minor cosmetic logged or clean part auto-approved.</div>
+      </div>
+    </div>
+
+    <!-- Zone 4b: Persistence & Webhook Dispatch -->
+    <div class="zone c-crimson" style="left:782px;top:370px;width:362px;height:275px;">
+      <div class="zone-title"><span>6. Persistence, ERP &amp; Audit</span><span class="pill bg-crimson">HMAC-SHA256</span></div>
+      <div class="box">
+        <div class="box-head"><span>Signed ERP Webhook Dispatch</span><span class="pill bg-crimson">POST 200</span></div>
+        <div class="box-sub"><span class="mono">X-VisionGuard-Signature: sha256=...</span> verified by <span class="mono">/api/webhooks/erp-receiver</span> (401 on tamper).</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>Normalized SQLite / PostgreSQL DB</span><span class="pill bg-emerald">6 TABLES</span></div>
+        <div class="box-sub"><span class="mono">inspection_batches</span>, <span class="mono">inspection_items</span>, <span class="mono">defect_detections</span>, <span class="mono">automation_events</span>, <span class="mono">webhook_deliveries</span>, <span class="mono">erp_alerts</span>.</div>
+      </div>
+      <div class="box">
+        <div class="box-head"><span>Batch Audit Report Exporter</span><span class="pill bg-cyan">JSON + MD</span></div>
+        <div class="box-sub">Generates signed pass-rate, latency &amp; quarantine reports.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <span>VisionGuard AI v1.0 · Portfolio Architecture Specification</span>
+    <span>Theme: #0B1120 Dark-Slate IEEE Engineering · Scale: 2400×1600 (2× Retina)</span>
+  </footer>
+</div>
+</body>
+</html>
