@@ -3,250 +3,448 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VisionGuard AI — Autonomous Visual Defect Inspection &amp; Triage Console</title>
+  <title>VisionGuard AI — Visual Inspection &amp; SLA Triage Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
+  <!-- Fixed 56px Top Navigation Bar -->
   <header class="topbar">
-    <div class="brand-cluster">
-      <div class="brand-mark">VG</div>
-      <div>
-        <h1>VisionGuard AI <span class="badge-env">PRODUCTION PIPELINE</span></h1>
-        <p class="subtitle">OpenCV Metrology · ONNX YOLOv8-Lite + MobileNetV3-INT8 · Deterministic SLA Triage</p>
+    <div class="topbar-left">
+      <div class="brand">
+        <svg class="brand-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+          <circle cx="12" cy="12" r="3.5" />
+        </svg>
+        <span class="brand-name">VisionGuard AI</span>
       </div>
+      <span id="runtime-pill" class="runtime-pill">ONNX CPU · FP32/INT8</span>
     </div>
-    <div class="header-actions">
-      <div id="runtime-pill" class="status-pill">ONNX Runtime: Loading...</div>
-      <label class="btn btn-secondary upload-btn">
-        Upload Frame
-        <input type="file" id="upload-input" accept="image/*" hidden />
-      </label>
-      <button id="run-batch-btn" class="btn btn-primary">Run 50-Item Batch</button>
-      <button id="refresh-btn" class="btn btn-ghost">Refresh</button>
+
+    <nav class="segmented-nav" role="tablist" aria-label="Console views">
+      <button class="nav-tab active" data-tab="workbench" role="tab" aria-selected="true">
+        Inspection Workbench
+      </button>
+      <button class="nav-tab" data-tab="qa" role="tab" aria-selected="false">
+        QA Review Queue
+        <span id="qa-tab-badge" class="nav-count">0</span>
+      </button>
+      <button class="nav-tab" data-tab="audit" role="tab" aria-selected="false">
+        Inspection Audit Log
+      </button>
+      <button class="nav-tab" data-tab="webhooks" role="tab" aria-selected="false">
+        ERP Webhooks
+      </button>
+    </nav>
+
+    <div class="topbar-actions">
+      <button id="simulate-batch-btn" class="btn btn-secondary" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+        <span>Simulate Batch</span>
+      </button>
+      <button id="open-inspect-modal-btn" class="btn btn-primary" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span>New Inspection</span>
+      </button>
     </div>
   </header>
 
-  <main class="container">
-    <!-- KPI Telemetry Ribbon -->
-    <section class="kpi-grid">
-      <div class="kpi-card">
-        <span class="kpi-label">Total Inspected</span>
-        <strong id="kpi-total" class="kpi-value">0</strong>
-        <span id="kpi-batches" class="kpi-sub">0 batches logged</span>
-      </div>
-      <div class="kpi-card kpi-emerald">
-        <span class="kpi-label">Auto-Approved</span>
-        <strong id="kpi-approved" class="kpi-value">0</strong>
-        <span id="kpi-pass-rate" class="kpi-sub">0.0% pass rate</span>
-      </div>
-      <div class="kpi-card kpi-crimson">
-        <span class="kpi-label">Quarantined + Webhooks</span>
-        <strong id="kpi-quarantined" class="kpi-value">0</strong>
-        <span id="kpi-webhooks" class="kpi-sub">0/0 signed webhooks 200 OK</span>
-      </div>
-      <div class="kpi-card kpi-amber">
-        <span class="kpi-label">HITL QA Review Queue</span>
-        <strong id="kpi-qa" class="kpi-value">0</strong>
-        <span class="kpi-sub">Threshold: conf &lt; 0.80</span>
-      </div>
-      <div class="kpi-card kpi-cyan">
-        <span class="kpi-label">Mean / P95 Latency</span>
-        <strong id="kpi-latency" class="kpi-value">0.0 ms</strong>
-        <span id="kpi-latency-split" class="kpi-sub">CV 0.0 ms · ONNX 0.0 ms</span>
-      </div>
-    </section>
+  <main class="shell">
+    <!-- TAB 1: Inspection Workbench -->
+    <section id="tab-workbench" class="tab-view active">
+      <!-- 4-Card KPI Strip -->
+      <section class="kpi-strip" aria-label="Inspection summary metrics">
+        <article class="kpi-card">
+          <span class="kpi-label">Total Inspected</span>
+          <strong id="kpi-total" class="kpi-value">0</strong>
+          <span id="kpi-batches" class="kpi-sub">0 batches recorded</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Auto-Approved (SLA)</span>
+          <strong id="kpi-approved" class="kpi-value">0</strong>
+          <span id="kpi-pass-rate" class="kpi-sub">0.0% automated pass rate</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Pending HITL QA</span>
+          <strong id="kpi-qa" class="kpi-value">0</strong>
+          <span class="kpi-sub">Escalated below 0.80 confidence</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Mean Pipeline Latency</span>
+          <strong id="kpi-latency" class="kpi-value">0.0 ms</strong>
+          <span id="kpi-latency-split" class="kpi-sub">CV 0.0 ms · ONNX 0.0 ms</span>
+        </article>
+      </section>
 
-    <!-- Navigation Tabs -->
-    <nav class="tab-bar">
-      <button class="tab-btn active" data-tab="feed">Live Inspection &amp; CV Overlay</button>
-      <button class="tab-btn" data-tab="automation">Automation Rules &amp; Webhooks</button>
-      <button class="tab-btn" data-tab="qa">Human QA Review Queue <span id="qa-tab-badge" class="pill-count">0</span></button>
-      <button class="tab-btn" data-tab="telemetry">Batch Telemetry &amp; Audit Reports</button>
-    </nav>
-
-    <!-- TAB 1: Live Inspection Feed & Annotated CV Overlay -->
-    <section id="tab-feed" class="tab-panel active">
-      <div class="split-layout">
-        <div class="panel feed-panel">
-          <div class="panel-header">
-            <h2>Live Inspection Stream</h2>
-            <div class="filter-group">
-              <select id="state-filter" class="select-input">
-                <option value="">All States</option>
-                <option value="APPROVED">APPROVED</option>
-                <option value="QUARANTINED">QUARANTINED</option>
-                <option value="PENDING_QA">PENDING_QA</option>
-                <option value="QA_RESOLVED_PASS">QA_RESOLVED_PASS</option>
-                <option value="QA_RESOLVED_REJECT">QA_RESOLVED_REJECT</option>
-              </select>
+      <!-- 62% / 38% Asymmetric Workbench Split -->
+      <section class="workbench-grid">
+        <!-- Left Panel: Calibrated Vision Viewport -->
+        <div class="card viewport-card">
+          <div class="card-toolbar">
+            <div class="segmented-control" role="group" aria-label="Vision viewport mode">
+              <button class="seg-btn active" data-view="overlay" type="button">Annotated Overlay</button>
+              <button class="seg-btn" data-view="raw" type="button">Raw Frame</button>
+              <button class="seg-btn" data-view="mask" type="button">Metrology Mask</button>
+            </div>
+            <div class="toolbar-right">
+              <label class="sr-only" for="part-selector">Select inspected part</label>
+              <select id="part-selector" class="select-control"></select>
             </div>
           </div>
-          <div id="items-list" class="items-scroll"></div>
+
+          <div class="vision-stage">
+            <img id="workbench-image" class="stage-media hidden" alt="Calibrated inspection frame" />
+            <canvas id="workbench-mask-canvas" class="stage-media hidden"></canvas>
+            <div id="workbench-empty" class="empty-placeholder">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              <span>Select a part or run an inspection to display calibrated vision telemetry.</span>
+            </div>
+          </div>
+
+          <div class="telemetry-bar">
+            <div class="tele-cell">
+              <span class="tele-label">Calibration</span>
+              <span id="tele-cal" class="tele-value mono">-- px/mm</span>
+            </div>
+            <div class="tele-cell">
+              <span class="tele-label">Defect Class</span>
+              <span id="tele-class" class="tele-value mono">--</span>
+            </div>
+            <div class="tele-cell">
+              <span class="tele-label">Physical Size</span>
+              <span id="tele-size" class="tele-value mono">-- mm</span>
+            </div>
+            <div class="tele-cell">
+              <span class="tele-label">Inference Time</span>
+              <span id="tele-time" class="tele-value mono">-- ms</span>
+            </div>
+          </div>
         </div>
 
-        <div class="panel inspector-panel">
-          <div class="panel-header">
+        <!-- Right Panel: SLA Triage & Metrology Dossier -->
+        <aside class="card dossier-card">
+          <div class="card-header">
             <div>
-              <h2 id="selected-title">Select an inspected frame</h2>
-              <span id="selected-subtitle" class="muted">Annotated OpenCV metrology &amp; ONNX detections</span>
+              <h2 class="card-title">SLA Triage &amp; Metrology Dossier</h2>
+              <p id="dossier-subtitle" class="card-subtitle">Deterministic policy evaluation</p>
             </div>
-            <div class="toggle-group">
-              <button id="view-overlay-btn" class="btn btn-xs active">Annotated Overlay</button>
-              <button id="view-raw-btn" class="btn btn-xs">Raw Frame</button>
+            <span id="dossier-status-pill" class="status-pill status-slate">--</span>
+          </div>
+
+          <dl id="dossier-kv" class="kv-list">
+            <div class="kv-row">
+              <dt>Part ID</dt>
+              <dd id="kv-part-id" class="mono">--</dd>
             </div>
+            <div class="kv-row">
+              <dt>Timestamp</dt>
+              <dd id="kv-timestamp" class="mono">--</dd>
+            </div>
+            <div class="kv-row">
+              <dt>Detector Confidence <span class="kv-hint">YOLOv8-Lite FP32</span></dt>
+              <dd id="kv-confidence" class="mono">--</dd>
+            </div>
+            <div class="kv-row">
+              <dt>Severity Grade <span class="kv-hint">MobileNetV3 INT8</span></dt>
+              <dd id="kv-severity" class="mono">--</dd>
+            </div>
+            <div class="kv-row">
+              <dt>Calibrated Dimensions</dt>
+              <dd id="kv-dimensions" class="mono">--</dd>
+            </div>
+            <div class="kv-row">
+              <dt>Alignment Skew</dt>
+              <dd id="kv-skew" class="mono">--</dd>
+            </div>
+            <div class="kv-row">
+              <dt>Policy Decision</dt>
+              <dd id="kv-policy" class="mono">--</dd>
+            </div>
+          </dl>
+
+          <div class="subtable-section">
+            <h3 class="section-eyebrow">Localized Regions</h3>
+            <div id="dossier-regions" class="regions-list"></div>
           </div>
-          <div class="image-stage">
-            <img id="inspector-image" alt="Inspection Frame" />
-            <div id="inspector-empty" class="empty-state">No item selected. Run a 50-item batch or upload an inspection frame.</div>
+
+          <div id="dossier-actions" class="dossier-actions hidden">
+            <button id="dossier-approve-btn" class="btn btn-approve" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>Approve Part</span>
+            </button>
+            <button id="dossier-quarantine-btn" class="btn btn-quarantine" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M12 9v4" />
+                <path d="M12 17h.01" />
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              </svg>
+              <span>Quarantine Part</span>
+            </button>
           </div>
-          <div id="metrology-grid" class="metrology-grid"></div>
-          <div class="detections-wrap">
-            <h3>Localized Defects &amp; Physical Metrology</h3>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Class</th>
-                  <th>Severity</th>
-                  <th>Confidence</th>
-                  <th>Area (mm&sup2;)</th>
-                  <th>W &times; H (mm)</th>
-                  <th>BBox (px)</th>
-                  <th>Source</th>
-                </tr>
-              </thead>
-              <tbody id="detections-tbody"></tbody>
-            </table>
+        </aside>
+      </section>
+    </section>
+
+    <!-- TAB 2: QA Review Queue -->
+    <section id="tab-qa" class="tab-view">
+      <div class="qa-layout">
+        <div class="card qa-list-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Pending HITL Queue</h2>
+              <p class="card-subtitle">Detections below 0.80 confidence</p>
+            </div>
+            <span id="qa-queue-total" class="status-pill status-amber">0 Pending</span>
+          </div>
+          <div id="qa-master-list" class="qa-master-list"></div>
+        </div>
+
+        <div class="card qa-detail-card">
+          <div id="qa-detail-empty" class="empty-placeholder">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>No low-confidence items awaiting QA review.</span>
+          </div>
+
+          <div id="qa-detail-body" class="hidden">
+            <div class="card-header">
+              <div>
+                <h2 id="qa-detail-title" class="card-title mono">--</h2>
+                <p id="qa-detail-sub" class="card-subtitle">--</p>
+              </div>
+              <span id="qa-detail-conf" class="status-pill status-amber">--</span>
+            </div>
+
+            <div class="vision-stage qa-stage">
+              <img id="qa-detail-image" class="stage-media" alt="QA item metrology overlay" />
+            </div>
+
+            <div class="qa-metrics-row">
+              <div class="tele-cell">
+                <span class="tele-label">Predicted Grade</span>
+                <span id="qa-m-grade" class="tele-value mono">--</span>
+              </div>
+              <div class="tele-cell">
+                <span class="tele-label">Defect Area</span>
+                <span id="qa-m-area" class="tele-value mono">--</span>
+              </div>
+              <div class="tele-cell">
+                <span class="tele-label">Alignment Skew</span>
+                <span id="qa-m-skew" class="tele-value mono">--</span>
+              </div>
+              <div class="tele-cell">
+                <span class="tele-label">Calibration</span>
+                <span id="qa-m-cal" class="tele-value mono">--</span>
+              </div>
+            </div>
+
+            <div class="qa-resolution-form">
+              <div class="form-row">
+                <div class="field">
+                  <label for="qa-reviewer-input">Reviewer</label>
+                  <input id="qa-reviewer-input" type="text" class="input-control" value="qa_lead_operator" />
+                </div>
+                <div class="field field-grow">
+                  <label for="qa-notes-input">Inspection Notes</label>
+                  <input id="qa-notes-input" type="text" class="input-control" value="Verified via optical metrology overlay" placeholder="Enter QA disposition note..." />
+                </div>
+              </div>
+              <div class="qa-btn-row">
+                <button id="qa-confirm-pass-btn" class="btn btn-approve" type="button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Confirm Pass</span>
+                </button>
+                <button id="qa-confirm-reject-btn" class="btn btn-quarantine" type="button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                  </svg>
+                  <span>Confirm Quarantine</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- TAB 2: Automation Rules & Signed Webhook Log -->
-    <section id="tab-automation" class="tab-panel">
-      <div class="two-col-grid">
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Deterministic SLA Triage Rule Engine</h2>
-            <span class="muted">Ordered priority evaluation</span>
+    <!-- TAB 3: Inspection Audit Log -->
+    <section id="tab-audit" class="tab-view">
+      <div class="card">
+        <div class="table-toolbar">
+          <div class="search-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input id="audit-search" type="search" class="search-input" placeholder="Search Part ID, surface, defect class..." />
           </div>
-          <div id="sla-rules-list" class="rules-list"></div>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Mock ERP Receiver (Verified HMAC Alerts)</h2>
-            <span class="muted">POST /api/webhooks/erp-receiver</span>
-          </div>
-          <div id="erp-alerts-list" class="events-scroll"></div>
-        </div>
-      </div>
 
-      <div class="panel mt-16">
-        <div class="panel-header">
-          <h2>Signed Webhook Dispatch Log (HMAC-SHA256)</h2>
-          <span class="muted">Real HTTP status &amp; round-trip latency</span>
+          <div class="filter-pills" role="group" aria-label="Disposition filter">
+            <button class="filter-pill active" data-filter="ALL" type="button">All</button>
+            <button class="filter-pill" data-filter="APPROVED" type="button">Approved</button>
+            <button class="filter-pill" data-filter="PENDING_QA" type="button">Pending QA</button>
+            <button class="filter-pill" data-filter="QUARANTINED" type="button">Quarantined</button>
+          </div>
         </div>
-        <div class="table-scroll">
-          <table class="data-table">
+
+        <div class="table-wrap">
+          <table class="enterprise-table">
             <thead>
               <tr>
-                <th>Time</th>
-                <th>Item ID</th>
-                <th>Target</th>
+                <th>Part ID</th>
+                <th>Timestamp</th>
+                <th>Defect Class</th>
+                <th>Dimensions (mm)</th>
+                <th>Confidence</th>
+                <th>SLA Policy</th>
+                <th>Status</th>
+                <th class="num-col">Latency</th>
+              </tr>
+            </thead>
+            <tbody id="audit-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: ERP Webhooks -->
+    <section id="tab-webhooks" class="tab-view">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Signed ERP Webhook Deliveries</h2>
+            <p class="card-subtitle">HMAC-SHA256 authenticated alerts dispatched to <span class="mono">/api/webhooks/erp-receiver</span></p>
+          </div>
+          <span id="webhooks-summary-pill" class="status-pill status-emerald">0 / 0 Verified</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="enterprise-table">
+            <thead>
+              <tr>
+                <th>Event ID</th>
+                <th>Part ID</th>
+                <th>SLA Trigger</th>
                 <th>HTTP Status</th>
-                <th>Latency</th>
                 <th>HMAC-SHA256 Signature</th>
-                <th>Response</th>
+                <th class="num-col">Payload</th>
               </tr>
             </thead>
             <tbody id="webhooks-tbody"></tbody>
           </table>
         </div>
       </div>
-
-      <div class="panel mt-16">
-        <div class="panel-header">
-          <h2>Automation Event Audit Trail</h2>
-        </div>
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Rule</th>
-                <th>Action</th>
-                <th>Item ID</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody id="events-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 3: Human-in-the-Loop QA Review Queue -->
-    <section id="tab-qa" class="tab-panel">
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <h2>Human-in-the-Loop QA Review Queue</h2>
-            <span class="muted">Low-confidence detections (&lt; 0.80) paused before ERP release or quarantine</span>
-          </div>
-          <div class="qa-reviewer-box">
-            <label>Reviewer:</label>
-            <input id="qa-reviewer-input" type="text" value="qa_lead_operator" class="text-input" />
-          </div>
-        </div>
-        <div id="qa-queue-grid" class="qa-grid"></div>
-      </div>
-    </section>
-
-    <!-- TAB 4: Telemetry Charts & Batch Audit Reports -->
-    <section id="tab-telemetry" class="tab-panel">
-      <div class="charts-grid">
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Per-Item Pipeline Latency (OpenCV vs ONNX Runtime)</h2>
-            <span class="muted">Milliseconds across inspected frames</span>
-          </div>
-          <div id="latency-chart" class="chart-box"></div>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <h2>Severity &amp; Defect Class Distribution</h2>
-            <span class="muted">Telemetry breakdown across surfaces</span>
-          </div>
-          <div id="distribution-chart" class="chart-box"></div>
-        </div>
-      </div>
-
-      <div class="panel mt-16">
-        <div class="panel-header">
-          <h2>Inspection Batches &amp; Audit Reports</h2>
-        </div>
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Batch ID</th>
-                <th>Name</th>
-                <th>Line</th>
-                <th>Total</th>
-                <th>Passed</th>
-                <th>Quarantined</th>
-                <th>Pending QA</th>
-                <th>Avg Latency</th>
-                <th>Audit Report</th>
-              </tr>
-            </thead>
-            <tbody id="batches-tbody"></tbody>
-          </table>
-        </div>
-      </div>
     </section>
   </main>
 
-  <div id="toast" class="toast hidden"></div>
+  <!-- Slide-Over Detail Drawer (Audit Row / Webhook Payload) -->
+  <div id="drawer-backdrop" class="backdrop hidden" aria-hidden="true"></div>
+  <aside id="detail-drawer" class="drawer hidden" aria-label="Detail inspector">
+    <div class="drawer-header">
+      <div>
+        <h2 id="drawer-title" class="card-title">Details</h2>
+        <p id="drawer-subtitle" class="card-subtitle mono">--</p>
+      </div>
+      <button id="drawer-close-btn" class="icon-btn" type="button" aria-label="Close drawer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div id="drawer-body" class="drawer-body"></div>
+  </aside>
+
+  <!-- New Inspection Modal -->
+  <div id="modal-backdrop" class="backdrop hidden" aria-hidden="true"></div>
+  <section id="inspect-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <div>
+        <h2 id="modal-title" class="card-title">New Frame Inspection</h2>
+        <p class="card-subtitle">Upload a JPEG, PNG, or WebP frame (max 5 MB) or run a sample preset</p>
+      </div>
+      <button id="modal-close-btn" class="icon-btn" type="button" aria-label="Close modal">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="field">
+          <label for="upload-surface">Surface Line</label>
+          <select id="upload-surface" class="input-control">
+            <option value="metallic">Metallic Plate</option>
+            <option value="pcb">PCB Assembly</option>
+            <option value="packaging">Packaging Seal</option>
+          </select>
+        </div>
+        <div class="field field-grow">
+          <label for="upload-serial">Serial Number (optional)</label>
+          <input id="upload-serial" type="text" class="input-control mono" placeholder="Auto-assigned if blank" />
+        </div>
+      </div>
+
+      <label id="dropzone" class="dropzone" for="upload-input">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        <span class="dropzone-title">Select inspection frame or drag &amp; drop</span>
+        <span class="dropzone-hint">PNG, JPEG, or WebP up to 5 MB</span>
+        <input id="upload-input" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+      </label>
+
+      <div class="preset-block">
+        <span class="section-eyebrow">Quick Sample Presets</span>
+        <div class="preset-grid">
+          <button class="preset-btn" data-preset="CRITICAL_REJECT" type="button">
+            <span>Critical Fracture Frame</span>
+            <span class="mono">Quarantine path</span>
+          </button>
+          <button class="preset-btn" data-preset="PENDING_QA" type="button">
+            <span>Low-Confidence Edge Case</span>
+            <span class="mono">HITL QA path</span>
+          </button>
+          <button class="preset-btn" data-preset="PASS" type="button">
+            <span>Clean Reference Frame</span>
+            <span class="mono">Auto-approve path</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Subtle Notification Toast -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
   <script src="/static/app.js"></script>
 </body>
 </html>
