@@ -32,7 +32,9 @@ from app.models import (
     TelemetrySnapshotOut,
     WebhookDeliveryOut,
 )
-from scripts.generate_sample_batch import generate_batch_directory
+from scripts.generate_sample_batch import generate_batch_directory, generate_synthetic_frame
+
+APP_DIR = Path(__file__).resolve().parent
 
 
 class VisionGuardService:
@@ -41,22 +43,95 @@ class VisionGuardService:
     def __init__(self, settings: Optional[Settings] = None) -> None:
         self.settings = settings or get_settings()
         self.settings.ensure_dirs()
+        self.overlays_dir = (
+            self.settings.data_dir / "annotated"
+            if settings is not None
+            else (APP_DIR.parent / "data" / "annotated")
+        )
+        self.overlays_dir.mkdir(parents=True, exist_ok=True)
         self.db = DatabaseManager(self.settings.database_url)
         self.cv_pipeline = CVMetrologyPipeline(self.settings)
         self.dl_engine = DLInferenceEngine(self.settings)
         self.automation = AutomationEngine(self.settings, self.db)
 
-    def _to_media_url(self, path_str: str) -> Optional[str]:
+    @staticmethod
+    def _clean_filename(path_str: str, fallback: str) -> str:
+        normalized = str(path_str or "").replace("\\", "/").strip()
+        name = Path(normalized).name if normalized else ""
+        return name or fallback
+
+    def _to_raw_media_url(self, item: Dict[str, Any]) -> str:
+        raw_str = str(item.get("raw_image_path") or "").replace("\\", "/")
         try:
-            rel = Path(path_str).resolve().relative_to(self.settings.data_dir.resolve())
+            rel = Path(raw_str).resolve().relative_to(self.settings.data_dir.resolve())
             return f"/media/{rel.as_posix()}"
         except Exception:
-            return None
+            pass
+        if "/data/" in raw_str:
+            tail = raw_str.split("/data/", 1)[1].lstrip("/")
+            return f"/media/{tail}"
+        fname = self._clean_filename(raw_str, f"{item['serial_number']}.png")
+        return f"/media/batches/{item['batch_id']}/{fname}"
 
     def _enrich_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
-        item["annotated_image_url"] = self._to_media_url(item["annotated_image_path"])
-        item["raw_image_url"] = self._to_media_url(item["raw_image_path"])
+        overlay_name = self._clean_filename(
+            item.get("annotated_image_path", ""), f"{item['item_id']}_overlay.png"
+        )
+        item["annotated_image_url"] = f"/overlays/{overlay_name}"
+        item["raw_image_url"] = self._to_raw_media_url(item)
         return item
+
+    def ensure_item_overlay(self, item_id: str) -> Optional[Path]:
+        """Return existing overlay PNG path or regenerate it on the fly if missing from disk."""
+        item = self.db.get_item(item_id)
+        if not item:
+            return None
+
+        overlay_name = self._clean_filename(
+            item.get("annotated_image_path", ""), f"{item_id}_overlay.png"
+        )
+        overlay_path = self.overlays_dir / overlay_name
+        if overlay_path.exists() and overlay_path.is_file():
+            return overlay_path
+
+        # Attempt to load original raw frame; fall back to synthetic surface frame if raw was pruned
+        raw_str = str(item.get("raw_image_path") or "").replace("\\", "/")
+        raw_candidates = [
+            Path(raw_str),
+            self.settings.data_dir / "batches" / item["batch_id"] / Path(raw_str).name,
+        ]
+        bgr = None
+        for cand in raw_candidates:
+            if cand.exists() and cand.is_file():
+                bgr = cv2.imdecode(np.frombuffer(cand.read_bytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
+                if bgr is not None:
+                    break
+
+        if bgr is None:
+            surface = item.get("surface_type") or "metallic"
+            if surface not in ("metallic", "pcb", "packaging"):
+                surface = "metallic"
+            bgr, _ = generate_synthetic_frame(surface_type=surface, defect_kind="clean", seed=0)
+
+        norm, _ = self.cv_pipeline.apply_clahe(bgr)
+        rect, _, _ = self.cv_pipeline.align_and_rectify_roi(norm)
+        annotated_img = self.cv_pipeline.render_annotated_overlay(
+            rectified_bgr=rect,
+            detections=item.get("detections", []),
+            item_id=item_id,
+            state=item["state"],
+            severity=item["predicted_severity"],
+            confidence=float(item["confidence"]),
+            px_per_mm=float(item["px_per_mm"]),
+            alignment_angle_deg=float(item["alignment_angle_deg"]),
+            total_latency_ms=float(item["total_latency_ms"]),
+        )
+        self.overlays_dir.mkdir(parents=True, exist_ok=True)
+        ok, png_buf = cv2.imencode(".png", annotated_img)
+        if not ok:
+            return None
+        overlay_path.write_bytes(png_buf.tobytes())
+        return overlay_path
 
     def inspect_frame(
         self,
@@ -87,7 +162,7 @@ class VisionGuardService:
                 }
             )
 
-        annotated_path = self.settings.data_dir / "annotated" / f"{item_id}_overlay.png"
+        annotated_path = self.overlays_dir / f"{item_id}_overlay.png"
         annotated_path.parent.mkdir(parents=True, exist_ok=True)
         now = utc_now_iso()
 
@@ -283,14 +358,16 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     if cfg.static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(cfg.static_dir)), name="static")
+    app.mount("/overlays", StaticFiles(directory=str(service.overlays_dir)), name="overlays")
     app.mount("/media", StaticFiles(directory=str(cfg.data_dir)), name="media")
 
     @app.get("/", response_class=HTMLResponse)
     def serve_console() -> HTMLResponse:
         index_file = cfg.static_dir / "index.html"
+        headers = {"Cache-Control": "no-store, no-cache, must-revalidate"}
         if not index_file.exists():
-            return HTMLResponse("<h1>VisionGuard AI API Running</h1>")
-        return HTMLResponse(index_file.read_text(encoding="utf-8"))
+            return HTMLResponse("<h1>VisionGuard AI API Running</h1>", headers=headers)
+        return HTMLResponse(index_file.read_text(encoding="utf-8"), headers=headers)
 
     @app.get("/api/health")
     def health() -> Dict[str, Any]:
@@ -403,6 +480,13 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Inspection item not found")
         return InspectionItemOut(**service._enrich_item(item))
 
+    @app.get("/api/items/{item_id}/overlay")
+    def get_item_overlay(item_id: str) -> FileResponse:
+        overlay_path = service.ensure_item_overlay(item_id)
+        if not overlay_path or not overlay_path.exists():
+            raise HTTPException(status_code=404, detail="Overlay image not found")
+        return FileResponse(path=str(overlay_path), media_type="image/png", filename=overlay_path.name)
+
     @app.get("/api/qa-queue", response_model=List[InspectionItemOut])
     def get_qa_queue(limit: int = 100) -> List[InspectionItemOut]:
         rows = [
@@ -412,6 +496,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         return [InspectionItemOut(**r) for r in rows]
 
     @app.post("/api/qa-queue/{item_id}/resolve", response_model=InspectionItemOut)
+    @app.patch("/api/qa-queue/{item_id}/resolve", response_model=InspectionItemOut)
     def resolve_qa(item_id: str, body: QAResolutionRequest) -> InspectionItemOut:
         updated = service.automation.resolve_qa_item(
             item_id=item_id,

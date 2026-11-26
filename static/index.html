@@ -10,7 +10,7 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=3" />
 </head>
 <body>
   <!-- Fixed 56px Top Navigation Bar -->
@@ -50,14 +50,14 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
           <polygon points="5 3 19 12 5 21 5 3" />
         </svg>
-        <span>Simulate Batch</span>
+        <span>Run 50-Item Batch</span>
       </button>
       <button id="open-inspect-modal-btn" class="btn btn-primary" type="button">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        <span>New Inspection</span>
+        <span>Upload Frame</span>
       </button>
     </div>
   </header>
@@ -73,7 +73,7 @@
           <span id="kpi-batches" class="kpi-sub">0 batches recorded</span>
         </article>
         <article class="kpi-card">
-          <span class="kpi-label">Auto-Approved (SLA)</span>
+          <span class="kpi-label">Auto-Approved</span>
           <strong id="kpi-approved" class="kpi-value">0</strong>
           <span id="kpi-pass-rate" class="kpi-sub">0.0% automated pass rate</span>
         </article>
@@ -83,7 +83,7 @@
           <span class="kpi-sub">Escalated below 0.80 confidence</span>
         </article>
         <article class="kpi-card">
-          <span class="kpi-label">Mean Pipeline Latency</span>
+          <span class="kpi-label">Mean Latency</span>
           <strong id="kpi-latency" class="kpi-value">0.0 ms</strong>
           <span id="kpi-latency-split" class="kpi-sub">CV 0.0 ms · ONNX 0.0 ms</span>
         </article>
@@ -185,19 +185,19 @@
           </div>
 
           <div id="dossier-actions" class="dossier-actions hidden">
-            <button id="dossier-approve-btn" class="btn btn-approve" type="button">
+            <button id="dossier-approve-btn" class="btn btn-approve" data-qa-decision="PASS" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-              <span>Approve Part</span>
+              <span>Approve (PASS)</span>
             </button>
-            <button id="dossier-quarantine-btn" class="btn btn-quarantine" type="button">
+            <button id="dossier-quarantine-btn" class="btn btn-quarantine" data-qa-decision="REJECT" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
                 <path d="M12 9v4" />
                 <path d="M12 17h.01" />
                 <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               </svg>
-              <span>Quarantine Part</span>
+              <span>Reject &amp; Quarantine</span>
             </button>
           </div>
         </aside>
@@ -270,19 +270,19 @@
                 </div>
               </div>
               <div class="qa-btn-row">
-                <button id="qa-confirm-pass-btn" class="btn btn-approve" type="button">
+                <button id="qa-confirm-pass-btn" class="btn btn-approve" data-qa-decision="PASS" type="button">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  <span>Confirm Pass</span>
+                  <span>Approve (PASS)</span>
                 </button>
-                <button id="qa-confirm-reject-btn" class="btn btn-quarantine" type="button">
+                <button id="qa-confirm-reject-btn" class="btn btn-quarantine" data-qa-decision="REJECT" type="button">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" />
                     <line x1="9" y1="9" x2="15" y2="15" />
                     <line x1="15" y1="9" x2="9" y2="15" />
                   </svg>
-                  <span>Confirm Quarantine</span>
+                  <span>Reject &amp; Quarantine</span>
                 </button>
               </div>
             </div>
@@ -445,6 +445,6 @@
   <!-- Subtle Notification Toast -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=3"></script>
 </body>
 </html>

@@ -63,7 +63,17 @@ def test_api_inspect_batch_qa_and_erp_receiver(tmp_path) -> None:
         assert resp.status_code == 200
         item = resp.json()
         assert item["serial_number"] == "VG-TEST-01"
-        assert item["annotated_image_url"] is not None
+        assert item["annotated_image_url"].startswith("/overlays/")
+        assert "\\" not in item["annotated_image_url"]
+        assert client.get(item["annotated_image_url"]).status_code == 200
+
+        # Verify fallback overlay endpoint regenerates missing overlay file on the fly
+        overlay_file = client.app.state.service.overlays_dir / f"{item['item_id']}_overlay.png"
+        overlay_file.unlink(missing_ok=True)
+        fallback_resp = client.get(f"/api/items/{item['item_id']}/overlay")
+        assert fallback_resp.status_code == 200
+        assert fallback_resp.headers["content-type"] == "image/png"
+        assert overlay_file.exists()
 
         # 4. Run mini batch via API & verify batch count bounds (<= 10)
         batch_resp = client.post(
@@ -104,7 +114,7 @@ def test_api_inspect_batch_qa_and_erp_receiver(tmp_path) -> None:
         assert good_wh.status_code == 200
         assert good_wh.json()["signature_verified"] is True
 
-        # 6. QA resolution if any PENDING_QA item exists
+        # 6. QA resolution if any PENDING_QA item exists (test POST + PATCH)
         qa_items = client.get("/api/qa-queue").json()
         if qa_items:
             qid = qa_items[0]["item_id"]
@@ -114,3 +124,12 @@ def test_api_inspect_batch_qa_and_erp_receiver(tmp_path) -> None:
             )
             assert res.status_code == 200
             assert res.json()["state"] == "QA_RESOLVED_PASS"
+            assert all(x["item_id"] != qid for x in client.get("/api/qa-queue").json())
+        if len(qa_items) > 1:
+            qid2 = qa_items[1]["item_id"]
+            res2 = client.patch(
+                f"/api/qa-queue/{qid2}/resolve",
+                json={"decision": "REJECT", "reviewer": "qa_e2e", "notes": "Quarantined"},
+            )
+            assert res2.status_code == 200
+            assert res2.json()["state"] == "QA_RESOLVED_REJECT"

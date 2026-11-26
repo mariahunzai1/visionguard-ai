@@ -136,10 +136,33 @@ function renderPartSelector(items) {
   sel.value = state.selectedItemId;
 }
 
+function overlayUrlFor(item) {
+  return item.annotated_image_url || `/api/items/${encodeURIComponent(item.item_id)}/overlay`;
+}
+
+function overlayFallbackUrlFor(item) {
+  return `/api/items/${encodeURIComponent(item.item_id)}/overlay`;
+}
+
+function setImgWithFallback(imgEl, primaryUrl, fallbackUrl) {
+  imgEl.onerror = () => {
+    imgEl.onerror = null;
+    if (fallbackUrl && !imgEl.src.includes(fallbackUrl)) {
+      imgEl.src = `${fallbackUrl}?t=${Date.now()}`;
+    }
+  };
+  imgEl.src = `${primaryUrl}?t=${Date.now()}`;
+}
+
 function drawMetrologyMask(item) {
   const canvas = document.getElementById("workbench-mask-canvas");
   const img = new Image();
   img.crossOrigin = "anonymous";
+  img.onerror = () => {
+    if (!img.src.includes(`/api/items/${item.item_id}/overlay`)) {
+      img.src = `${overlayFallbackUrlFor(item)}?t=${Date.now()}`;
+    }
+  };
   img.onload = () => {
     const w = 512;
     const h = 384;
@@ -237,11 +260,9 @@ function renderWorkbench() {
     drawMetrologyMask(item);
   } else {
     canvasEl.classList.add("hidden");
-    const url = state.viewMode === "raw" ? item.raw_image_url : item.annotated_image_url;
-    if (url) {
-      imgEl.src = `${url}?t=${Date.now()}`;
-      imgEl.classList.remove("hidden");
-    }
+    const url = state.viewMode === "raw" ? (item.raw_image_url || overlayFallbackUrlFor(item)) : overlayUrlFor(item);
+    setImgWithFallback(imgEl, url, overlayFallbackUrlFor(item));
+    imgEl.classList.remove("hidden");
   }
 
   // Bottom viewport telemetry bar
@@ -317,7 +338,7 @@ function renderQAQueue() {
     .map(
       (item) => `
     <button class="qa-item ${item.item_id === state.selectedQaId ? "active" : ""}" data-qa-id="${escapeHtml(item.item_id)}" type="button">
-      <img class="qa-thumb" src="${escapeHtml(item.annotated_image_url)}?t=${Date.now()}" alt="${escapeHtml(item.serial_number)}" />
+      <img class="qa-thumb" src="${escapeHtml(overlayUrlFor(item))}?t=${Date.now()}" data-fallback="${escapeHtml(overlayFallbackUrlFor(item))}" alt="${escapeHtml(item.serial_number)}" />
       <div class="qa-item-meta">
         <div class="qa-item-top">
           <strong class="mono">${escapeHtml(item.serial_number)}</strong>
@@ -330,11 +351,13 @@ function renderQAQueue() {
     )
     .join("");
 
-  listEl.querySelectorAll(".qa-item").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      state.selectedQaId = btn.dataset.qaId;
-      renderQAQueue();
-    });
+  listEl.querySelectorAll("img.qa-thumb").forEach((imgEl) => {
+    imgEl.addEventListener("error", () => {
+      const fb = imgEl.dataset.fallback;
+      if (fb && !imgEl.src.includes(fb)) {
+        imgEl.src = `${fb}?t=${Date.now()}`;
+      }
+    }, { once: true });
   });
 
   const active = queue.find((i) => i.item_id === state.selectedQaId) || queue[0];
@@ -344,30 +367,51 @@ function renderQAQueue() {
   document.getElementById("qa-detail-title").textContent = `${active.serial_number} (${active.item_id})`;
   document.getElementById("qa-detail-sub").textContent = `${active.surface_type.toUpperCase()} · ${formatUtc(active.created_at)}`;
   document.getElementById("qa-detail-conf").textContent = `Conf ${(active.confidence * 100).toFixed(1)}%`;
-  document.getElementById("qa-detail-image").src = `${active.annotated_image_url}?t=${Date.now()}`;
+  setImgWithFallback(
+    document.getElementById("qa-detail-image"),
+    overlayUrlFor(active),
+    overlayFallbackUrlFor(active)
+  );
   document.getElementById("qa-m-grade").textContent = active.predicted_severity;
   document.getElementById("qa-m-area").textContent = `${active.defect_area_mm2.toFixed(2)} mm2`;
   document.getElementById("qa-m-skew").textContent = `${active.alignment_angle_deg >= 0 ? "+" : ""}${active.alignment_angle_deg.toFixed(2)} deg`;
   document.getElementById("qa-m-cal").textContent = `${active.px_per_mm.toFixed(2)} px/mm`;
 }
 
-async function resolveQAItem(itemId, decision, notesOverride) {
+async function resolveQAItem(itemId, decision, triggerBtn, notesOverride) {
   const reviewer = document.getElementById("qa-reviewer-input")?.value?.trim() || "qa_lead_operator";
   const notes = notesOverride || document.getElementById("qa-notes-input")?.value?.trim() || "Verified in console";
+  const actionButtons = document.querySelectorAll("[data-qa-decision]");
+  const origLabel = triggerBtn ? triggerBtn.querySelector("span")?.textContent : "";
+
+  actionButtons.forEach((b) => { b.disabled = true; });
+  if (triggerBtn && triggerBtn.querySelector("span")) {
+    triggerBtn.querySelector("span").textContent = "Resolving...";
+  }
+
   try {
     await apiJson(`/api/qa-queue/${encodeURIComponent(itemId)}/resolve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision, reviewer, notes }),
     });
-    showToast(`Item ${itemId} resolved as ${decision === "PASS" ? "Approved" : "Quarantined"}`);
+    // Immediately remove resolved item from local QA queue before full telemetry sync
+    state.qaQueue = state.qaQueue.filter((i) => i.item_id !== itemId);
+    if (state.selectedQaId === itemId) {
+      state.selectedQaId = state.qaQueue[0]?.item_id || null;
+    }
+    renderQAQueue();
+    showToast(`Item ${itemId} resolved as ${decision === "PASS" ? "Approved (PASS)" : "Quarantined"}`);
     await loadAll();
   } catch (err) {
-    showToast(`QA resolution error: ${err.message}`);
+    showToast(`QA resolution failed: ${err.message}`);
+  } finally {
+    actionButtons.forEach((b) => { b.disabled = false; });
+    if (triggerBtn && triggerBtn.querySelector("span") && origLabel) {
+      triggerBtn.querySelector("span").textContent = origLabel;
+    }
   }
 }
-
-window.resolveQA = resolveQAItem;
 
 function matchesAuditFilter(item) {
   if (state.auditFilter === "APPROVED") {
@@ -492,7 +536,7 @@ function openItemDrawer(itemId) {
   const pill = statusPillMeta(item.state, item.predicted_severity);
   const body = `
     <div class="vision-stage" style="min-height:240px;">
-      <img class="stage-media" src="${escapeHtml(item.annotated_image_url)}?t=${Date.now()}" alt="${escapeHtml(item.serial_number)}" />
+      <img id="drawer-overlay-img" class="stage-media" src="${escapeHtml(overlayUrlFor(item))}?t=${Date.now()}" alt="${escapeHtml(item.serial_number)}" />
     </div>
     <dl class="kv-list" style="padding:0;">
       <div class="kv-row"><dt>Disposition</dt><dd><span class="status-pill ${pill.cls}">${escapeHtml(pill.label)}</span></dd></div>
@@ -510,6 +554,10 @@ function openItemDrawer(itemId) {
     </div>
   `;
   openDrawer(`${item.serial_number}`, `${item.item_id} · ${formatUtc(item.created_at)}`, body);
+  const drawerImg = document.getElementById("drawer-overlay-img");
+  if (drawerImg) {
+    setImgWithFallback(drawerImg, overlayUrlFor(item), overlayFallbackUrlFor(item));
+  }
 }
 
 function openWebhookDrawer(deliveryId) {
@@ -639,20 +687,26 @@ document.addEventListener("DOMContentLoaded", () => {
     renderWorkbench();
   });
 
-  // Workbench inline QA actions
-  document.getElementById("dossier-approve-btn").addEventListener("click", () => {
-    if (state.selectedItemId) resolveQAItem(state.selectedItemId, "PASS", "Approved from Workbench dossier");
-  });
-  document.getElementById("dossier-quarantine-btn").addEventListener("click", () => {
-    if (state.selectedItemId) resolveQAItem(state.selectedItemId, "REJECT", "Quarantined from Workbench dossier");
+  // Delegated listener for QA master list selection
+  document.getElementById("qa-master-list").addEventListener("click", (e) => {
+    const itemBtn = e.target.closest(".qa-item");
+    if (!itemBtn) return;
+    state.selectedQaId = itemBtn.dataset.qaId;
+    renderQAQueue();
   });
 
-  // QA Review Queue actions
-  document.getElementById("qa-confirm-pass-btn").addEventListener("click", () => {
-    if (state.selectedQaId) resolveQAItem(state.selectedQaId, "PASS");
+  // Delegated listeners for Approve (PASS) & Reject & Quarantine buttons (Workbench + QA Queue)
+  document.getElementById("dossier-actions").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-qa-decision]");
+    if (!btn || !state.selectedItemId) return;
+    const note = btn.dataset.qaDecision === "PASS" ? "Approved from Workbench dossier" : "Quarantined from Workbench dossier";
+    resolveQAItem(state.selectedItemId, btn.dataset.qaDecision, btn, note);
   });
-  document.getElementById("qa-confirm-reject-btn").addEventListener("click", () => {
-    if (state.selectedQaId) resolveQAItem(state.selectedQaId, "REJECT");
+
+  document.getElementById("qa-detail-body").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-qa-decision]");
+    if (!btn || !state.selectedQaId) return;
+    resolveQAItem(state.selectedQaId, btn.dataset.qaDecision, btn);
   });
 
   // Audit Log search & filter pills
@@ -734,12 +788,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Simulate 50-Item Batch button
+  // Run 50-Item Batch button
   document.getElementById("simulate-batch-btn").addEventListener("click", async () => {
     const btn = document.getElementById("simulate-batch-btn");
     const label = btn.querySelector("span");
     btn.disabled = true;
-    label.textContent = "Simulating...";
+    label.textContent = "Running Batch...";
     try {
       const res = await apiJson("/api/batches/run", {
         method: "POST",
@@ -751,13 +805,13 @@ document.addEventListener("DOMContentLoaded", () => {
           seed: Math.floor(Math.random() * 9000) + 100,
         }),
       });
-      showToast(`Simulated batch complete: ${res.items_processed} parts inspected`);
+      showToast(`Batch complete: ${res.items_processed} parts inspected`);
       await loadAll();
     } catch (err) {
       showToast(`Batch simulation failed: ${err.message}`);
     } finally {
       btn.disabled = false;
-      label.textContent = "Simulate Batch";
+      label.textContent = "Run 50-Item Batch";
     }
   });
 
