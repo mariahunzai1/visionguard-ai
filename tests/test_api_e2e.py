@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import cv2
 from fastapi.testclient import TestClient
 
@@ -22,6 +24,7 @@ def _test_client(tmp_path) -> TestClient:
 
 
 def test_api_inspect_batch_qa_and_erp_receiver(tmp_path) -> None:
+    assert "torch" not in sys.modules
     with _test_client(tmp_path) as client:
         # 1. Startup auto-seeding populates 50-item batch on empty DB + Console HTML & health
         assert client.get("/").status_code == 200

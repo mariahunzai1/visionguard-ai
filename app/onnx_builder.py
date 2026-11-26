@@ -1,18 +1,15 @@
-"""Pure-Python ONNX Protobuf (IR v8 / Opset 17) serializer and PyTorch->ONNX exporter.
+"""Pure-Python ONNX Protobuf (IR v8 / Opset 17) graph serializer.
 
-Allows exporting trained PyTorch CNNs (including depthwise-separable MobileNetV3 blocks
-and YOLOv8-style grid detectors) directly into valid FP32 and INT8-quantized `.onnx` files
-loadable by `onnxruntime.InferenceSession` without requiring the external `onnx` package.
+Provides `OnnxGraphBuilder` for constructing valid FP32 and INT8-quantized `.onnx`
+graphs loadable by `onnxruntime.InferenceSession` without requiring `onnx` or `torch`
+at runtime.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import List, Sequence, Tuple
 import numpy as np
-import torch
-import torch.nn as nn
 
 
 def _varint(n: int) -> bytes:
@@ -117,28 +114,6 @@ def _make_node(
     for attr in attrs:
         buf += _field_bytes(5, attr)
     return bytes(buf)
-
-
-def _fold_conv_bn(conv: nn.Conv2d, bn: Optional[nn.BatchNorm2d]) -> Tuple[np.ndarray, np.ndarray]:
-    w = conv.weight.detach().cpu().numpy().astype(np.float32)
-    if conv.bias is not None:
-        b = conv.bias.detach().cpu().numpy().astype(np.float32)
-    else:
-        b = np.zeros(conv.out_channels, dtype=np.float32)
-
-    if bn is None:
-        return w, b
-
-    gamma = bn.weight.detach().cpu().numpy().astype(np.float32)
-    beta = bn.bias.detach().cpu().numpy().astype(np.float32)
-    mean = bn.running_mean.detach().cpu().numpy().astype(np.float32)
-    var = bn.running_var.detach().cpu().numpy().astype(np.float32)
-    eps = float(bn.eps)
-
-    inv_std = gamma / np.sqrt(var + eps)
-    w_folded = w * inv_std.reshape(-1, 1, 1, 1)
-    b_folded = (b - mean) * inv_std + beta
-    return w_folded, b_folded
 
 
 @dataclass
@@ -311,84 +286,3 @@ class OnnxGraphBuilder:
         model += _field_bytes(7, bytes(graph))
         model += _field_bytes(8, opset)
         return bytes(model)
-
-
-def export_sequential_cnn_to_onnx(
-    module: nn.Module,
-    input_shape: Tuple[int, int, int, int],
-    output_shape: Sequence[int | str],
-    output_path: Path,
-    graph_name: str = "visionguard_net",
-    quantize_int8: bool = False,
-) -> Path:
-    """Export a PyTorch module (composed of Conv2d/BatchNorm2d/ReLU/MaxPool2d/AdaptiveAvgPool2d/Flatten/Linear)
-    into a standard ONNX file with optional INT8 weight quantization."""
-    module.eval()
-    builder = OnnxGraphBuilder.create(graph_name)
-    builder.add_input("input", list(input_shape), elem_type=1)
-
-    layers = list(module.modules())[1:]  # skip root container, walk flat children cleanly
-    children: List[nn.Module] = []
-
-    def _collect(m: nn.Module) -> None:
-        if len(list(m.children())) == 0:
-            children.append(m)
-        else:
-            for c in m.children():
-                _collect(c)
-
-    _collect(module)
-    cur = "input"
-    idx = 0
-    while idx < len(children):
-        layer = children[idx]
-        if isinstance(layer, nn.Conv2d):
-            bn = None
-            if idx + 1 < len(children) and isinstance(children[idx + 1], nn.BatchNorm2d):
-                bn = children[idx + 1]
-                idx += 1
-            w, b = _fold_conv_bn(layer, bn)
-            stride = layer.stride if isinstance(layer.stride, tuple) else (layer.stride, layer.stride)
-            pad = layer.padding if isinstance(layer.padding, tuple) else (layer.padding, layer.padding)
-            cur = builder.add_conv(
-                cur,
-                w,
-                b,
-                stride=stride,
-                padding=pad,
-                groups=int(layer.groups),
-                quantize_int8=quantize_int8,
-            )
-        elif isinstance(layer, nn.ReLU):
-            cur = builder.add_relu(cur)
-        elif isinstance(layer, nn.Sigmoid):
-            cur = builder.add_sigmoid(cur)
-        elif isinstance(layer, nn.MaxPool2d):
-            k = layer.kernel_size if isinstance(layer.kernel_size, int) else layer.kernel_size[0]
-            s = layer.stride if isinstance(layer.stride, int) else layer.stride[0]
-            p = layer.padding if isinstance(layer.padding, int) else layer.padding[0]
-            cur = builder.add_maxpool(cur, kernel_size=k, stride=s, padding=p)
-        elif isinstance(layer, nn.AdaptiveAvgPool2d):
-            cur = builder.add_global_avg_pool(cur)
-        elif isinstance(layer, nn.Flatten):
-            cur = builder.add_flatten(cur, axis=int(layer.start_dim))
-        elif isinstance(layer, nn.Linear):
-            w = layer.weight.detach().cpu().numpy().astype(np.float32)
-            b = (
-                layer.bias.detach().cpu().numpy().astype(np.float32)
-                if layer.bias is not None
-                else np.zeros(layer.out_features, dtype=np.float32)
-            )
-            cur = builder.add_linear(cur, w, b, quantize_int8=quantize_int8)
-        elif isinstance(layer, (nn.Dropout, nn.Identity)):
-            pass
-        else:
-            raise ValueError(f"Unsupported layer type for ONNX export: {type(layer).__name__}")
-        idx += 1
-
-    builder.add_identity(cur, "output")
-    builder.add_output("output", list(output_shape), elem_type=1)
-    model_bytes = builder.build_model_bytes()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(model_bytes)
-    return output_path

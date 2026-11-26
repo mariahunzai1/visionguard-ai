@@ -1,4 +1,4 @@
-"""Tests for ONNX Runtime YOLOv8-lite detector and MobileNetV3-INT8 severity classifier."""
+"""Tests for offline ONNX export and CPU-only ONNX Runtime YOLOv8-lite + MobileNetV3-INT8 inference."""
 
 from __future__ import annotations
 
@@ -6,10 +6,14 @@ from app.config import Settings
 from app.cv_pipeline import CVMetrologyPipeline
 from app.dl_engine import DLInferenceEngine
 from scripts.generate_sample_batch import generate_synthetic_frame
+from scripts.train_export_onnx import train_and_export_models
 
 
 def test_onnx_models_build_and_infer(tmp_path) -> None:
     settings = Settings(data_dir=tmp_path / "data", models_dir=tmp_path / "models")
+    exported = train_and_export_models(settings)
+    assert len(exported) == 3
+
     cv_pipe = CVMetrologyPipeline(settings)
     dl = DLInferenceEngine(settings)
 
